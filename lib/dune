@@ -1,0 +1,8 @@
+(ocamllex lexer)
+
+(menhir
+ (modules parser))
+
+(library
+ (name hello_world)
+ (modules lexer parser symbol ast ID types env semant translate))

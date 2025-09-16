@@ -1,0 +1,6 @@
+let
+  function add(x : Int, y : Int) : Int =
+    x + y
+in
+  add(10, 20, 30)
+end
