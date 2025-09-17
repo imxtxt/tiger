@@ -185,8 +185,8 @@ and trans_dec (venv : venv) (tenv : tenv) (dec : Ast.dec) : venv * tenv =
             SMap.add name (Types.Name (name, ty)) tenv) 
           tenv name_tys
       in
-      let ty_descs = List.map (fun Ast.{ty_desc; _} -> trans_ty_desc tenv ty_desc) type_decs in
-      List.iter2 (fun (_, t1) t2 -> t1 := Some t2) name_tys ty_descs ;
+      let real_tys = List.map (fun Ast.{ty_desc; _} -> trans_ty_desc tenv ty_desc) type_decs in
+      List.iter2 (fun (_, t1) t2 -> t1 := Some t2) name_tys real_tys ;
       venv, tenv
 
 and trans_ty_desc (tenv : tenv) (ty : Ast.ty_desc) : Types.t =
