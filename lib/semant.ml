@@ -161,7 +161,7 @@ and trans_dec (venv : venv) (tenv : tenv) (dec : Ast.dec) : venv * tenv =
           in
           let { stms; exp; ty = body_ty } = trans_exp venv tenv body in
           match ret_ty with
-          | None -> check_equal body_ty Unit
+          | None -> check_comp body_ty Unit
           | Some ret_ty -> check_comp body_ty (SMap.find ret_ty tenv)) 
         func_decs ;
       venv, tenv
