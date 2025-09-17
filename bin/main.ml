@@ -8,5 +8,5 @@ let parse file =
   ast
 
 let () = 
-  let _ast = parse Sys.argv.(1) in
-  ()
+  let ast = parse Sys.argv.(1) in
+  Semant.trans_prog ast

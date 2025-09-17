@@ -12,6 +12,11 @@ type stms_exp_ty = {
 [@@@warning "-partial-match"]
 [@@@warning "-unused-var-strict"]
 
+let rec actual_type (t : Types.t) : Types.t =
+  match t with
+  | Name (_, { contents = Some t }) -> actual_type t
+  | t -> t
+
 let rec check_comp (t1 : Types.t) (t2 : Types.t) =
   match t1, t2 with
   | Int, Int
@@ -127,6 +132,6 @@ and trans_exp (venv : venv) (tenv : tenv) (exp : Ast.exp) : stms_exp_ty =
 [@@@warning "+partial-match"]
 [@@@warning "+unused-var-strict"]
 
-let trans_prog (exp : Ast.exp) : unit =
+let trans_prog (exp : Ast.exp) =
   trans_exp Env.base_venv Env.base_tenv exp
   |> ignore
