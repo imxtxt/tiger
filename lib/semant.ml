@@ -8,7 +8,6 @@ type stms_exp_ty = {
   exp : Translate.exp;
   ty : Types.t;
 }
-
 [@@@warning "-partial-match"]
 [@@@warning "-unused-var-strict"]
 
@@ -44,14 +43,15 @@ let rec trans_var (venv : venv) (tenv : tenv) (var : Ast.var) : stms_exp_ty =
   match var with
   | Simple id ->
       let Var_entry ty = SMap.find id venv in
-      { stms = []; exp = (); ty }
+      { stms = []; exp = (); ty = actual_type ty }
   | Field (var, id) ->
       let { stms; exp; ty = Record (fields, _) } = trans_var venv tenv var in
-      { stms = []; exp = (); ty = List.assoc id fields }
+      let ty = List.assoc id fields in
+      { stms = []; exp = (); ty =  actual_type ty }
   | Subscript (var, idx) ->
       let { stms; exp; ty = Array (ty, _) } = trans_var venv tenv var in
       let { stms; exp; ty = Int } = trans_exp venv tenv idx in
-      { stms = []; exp = (); ty }
+      { stms = []; exp = (); ty = actual_type ty }
 
 and trans_exp (venv : venv) (tenv : tenv) (exp : Ast.exp) : stms_exp_ty =
   let trexp exp = trans_exp venv tenv exp in
@@ -64,7 +64,7 @@ and trans_exp (venv : venv) (tenv : tenv) (exp : Ast.exp) : stms_exp_ty =
       let args_stmss_exps_tys = List.map trexp args in
       let Fun_entry (tys, ty) = SMap.find f venv in
       List.iter2 (fun a t -> check_comp a.ty t) args_stmss_exps_tys tys ;
-      { stms = []; exp = (); ty }
+      { stms = []; exp = (); ty = actual_type ty }
   | Aop (e1, aop, e2) ->
       let { stms; exp; ty = Int } = trexp e1 in
       let { stms; exp; ty = Int } = trexp e2 in
@@ -86,7 +86,7 @@ and trans_exp (venv : venv) (tenv : tenv) (exp : Ast.exp) : stms_exp_ty =
       let { stms; exp; ty = Int } = trexp e2 in
       { stms = []; exp = (); ty = Int }
   | Record (t, inits) -> 
-      let Record (fields, id) = SMap.find t tenv in
+      let Record (fields, id) = actual_type (SMap.find t tenv) in
       let inits_stmss_exps_tys = List.map (fun (n, e) -> n, trexp e) inits in
       List.iter2 
         (fun (n1, {ty = t1; _}) (n2, t2)-> 
@@ -130,7 +130,7 @@ and trans_exp (venv : venv) (tenv : tenv) (exp : Ast.exp) : stms_exp_ty =
       in
       trans_exp venv tenv e1
   | Array (t, e1, e2) -> 
-      let Array (ty, id) = SMap.find t tenv in
+      let Array (ty, id) = actual_type (SMap.find t tenv) in
       let { stms; exp; ty = Int } = trexp e1 in
       let { stms; exp; ty = e2_ty } = trexp e2 in
       check_comp e2_ty ty ;
