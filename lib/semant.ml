@@ -159,7 +159,7 @@ and trans_dec (venv : venv) (tenv : tenv) (dec : Ast.dec) : venv * tenv =
                 SMap.add p.name (Env.Var_entry (SMap.find p.ty tenv)) venv) 
               venv params
           in
-          let {stms; exp; ty = body_ty} = trans_exp venv tenv body in
+          let { stms; exp; ty = body_ty } = trans_exp venv tenv body in
           match ret_ty with
           | None -> check_equal body_ty Unit
           | Some ret_ty -> check_comp body_ty (SMap.find ret_ty tenv)) 
@@ -177,8 +177,27 @@ and trans_dec (venv : venv) (tenv : tenv) (dec : Ast.dec) : venv * tenv =
           let venv = SMap.add name (Env.Var_entry init_ty) venv in
           venv, tenv
       end
-  | Type_dec _ -> failwith "TODO"
+  | Type_dec type_decs ->
+      let name_tys = List.map (fun Ast.{name; _} -> name, ref None) type_decs in
+      let tenv =
+        List.fold_left
+          (fun tenv (name, ty) ->
+            SMap.add name (Types.Name (name, ty)) tenv) 
+          tenv name_tys
+      in
+      let ty_descs = List.map (fun Ast.{ty_desc; _} -> trans_ty_desc tenv ty_desc) type_decs in
+      List.iter2 (fun (_, t1) t2 -> t1 := Some t2) name_tys ty_descs ;
+      venv, tenv
 
+and trans_ty_desc (tenv : tenv) (ty : Ast.ty_desc) : Types.t =
+  match ty with
+  | Name ty -> SMap.find ty tenv
+  | Record fields ->
+      let fields = List.map (fun (n, t) -> n, SMap.find t tenv) fields in
+      Record (fields, ID.gen_id ())
+  | Array ty ->
+      let ty = SMap.find ty tenv in
+      Array (ty, ID.gen_id ())
 
 [@@@warning "+partial-match"]
 [@@@warning "+unused-var-strict"]
