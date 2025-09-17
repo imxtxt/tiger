@@ -121,13 +121,64 @@ and trans_exp (venv : venv) (tenv : tenv) (exp : Ast.exp) : stms_exp_ty =
       let { stms; exp; ty = Unit } = trexp e2 in
       { stms = []; exp = (); ty = Unit }
   | Break -> { stms = []; exp = (); ty = Unit }
-  | Let _ -> failwith "TODO"
+  | Let (decs, e1) ->
+      let venv, tenv =
+        List.fold_left
+          (fun (venv, tenv) dec ->
+            trans_dec venv tenv dec) 
+          (venv, tenv) decs
+      in
+      trans_exp venv tenv e1
   | Array (t, e1, e2) -> 
       let Array (ty, id) = SMap.find t tenv in
       let { stms; exp; ty = Int } = trexp e1 in
       let { stms; exp; ty = e2_ty } = trexp e2 in
       check_comp e2_ty ty ;
       { stms = []; exp = (); ty = Array (ty, id) }
+
+and trans_dec (venv : venv) (tenv : tenv) (dec : Ast.dec) : venv * tenv =
+  match dec with
+  | Func_dec func_decs -> 
+      let venv = 
+        List.fold_left
+          (fun venv Ast.{name; params; ret_ty; _} ->
+            let params_tys = List.map (fun (p : Ast.param) -> SMap.find p.ty tenv) params in
+            let ret_ty = 
+              match ret_ty with
+              | Some ret_ty -> SMap.find ret_ty tenv
+              | None -> Unit
+            in
+            SMap.add name (Env.Fun_entry (params_tys, ret_ty)) venv) 
+          venv func_decs
+      in
+      List.iter
+        (fun Ast.{name; params; ret_ty; body} -> 
+          let venv = 
+            List.fold_left
+              (fun venv (p : Ast.param) ->
+                SMap.add p.name (Env.Var_entry (SMap.find p.ty tenv)) venv) 
+              venv params
+          in
+          let {stms; exp; ty = body_ty} = trans_exp venv tenv body in
+          match ret_ty with
+          | None -> check_equal body_ty Unit
+          | Some ret_ty -> check_comp body_ty (SMap.find ret_ty tenv)) 
+        func_decs ;
+      venv, tenv
+  | Var_dec { name; escape; ty; init } ->
+      let { stms; exp; ty = init_ty } = trans_exp venv tenv init in
+      begin match ty with
+      | Some ty ->
+          let ty = SMap.find ty tenv in
+          check_comp init_ty ty ;
+          let venv = SMap.add name (Env.Var_entry ty) venv in
+          venv, tenv
+      | None when init_ty <> Nil ->
+          let venv = SMap.add name (Env.Var_entry init_ty) venv in
+          venv, tenv
+      end
+  | Type_dec _ -> failwith "TODO"
+
 
 [@@@warning "+partial-match"]
 [@@@warning "+unused-var-strict"]

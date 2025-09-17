@@ -1,6 +1,5 @@
 let
-  function add(x : Int, y : Int) : Int =
-    x + y
+  var num1 : Int := 10
 in
-  add(10, 20, 30)
+  num1
 end
