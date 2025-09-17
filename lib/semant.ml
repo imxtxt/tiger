@@ -8,6 +8,7 @@ type stms_exp_ty = {
   exp : Translate.exp;
   ty : Types.t;
 }
+
 [@@@warning "-partial-match"]
 [@@@warning "-unused-var-strict"]
 
@@ -39,30 +40,30 @@ let rec check_equal (t1 : Types.t) (t2 : Types.t) =
   | Name (_, { contents = Some t }), t2 -> check_equal t1 t2
   | t1, Name (_, { contents = Some t2 }) -> check_equal t1 t2
 
-let rec trans_var (venv : venv) (tenv : tenv) (var : Ast.var) : stms_exp_ty =
+let rec trans_var (venv : venv) (tenv : tenv) (level : Translate.level) (var : Ast.var) : stms_exp_ty =
   match var with
   | Simple id ->
-      let Var_entry ty = SMap.find id venv in
+      let Var_entry (access, ty) = SMap.find id venv in
       { stms = []; exp = (); ty = actual_type ty }
   | Field (var, id) ->
-      let { stms; exp; ty = Record (fields, _) } = trans_var venv tenv var in
+      let { stms; exp; ty = Record (fields, _) } = trans_var venv tenv level var in
       let ty = List.assoc id fields in
       { stms = []; exp = (); ty =  actual_type ty }
   | Subscript (var, idx) ->
-      let { stms; exp; ty = Array (ty, _) } = trans_var venv tenv var in
-      let { stms; exp; ty = Int } = trans_exp venv tenv idx in
+      let { stms; exp; ty = Array (ty, _) } = trans_var venv tenv level var in
+      let { stms; exp; ty = Int } = trans_exp venv tenv level idx in
       { stms = []; exp = (); ty = actual_type ty }
 
-and trans_exp (venv : venv) (tenv : tenv) (exp : Ast.exp) : stms_exp_ty =
-  let trexp exp = trans_exp venv tenv exp in
+and trans_exp (venv : venv) (tenv : tenv) (level : Translate.level)  (exp : Ast.exp): stms_exp_ty =
+  let trexp exp = trans_exp venv tenv level exp in
   match exp with
-  | Var var -> trans_var venv tenv var
+  | Var var -> trans_var venv tenv level var
   | Nil -> { stms = []; exp = (); ty = Nil }
   | Int _ -> { stms = []; exp = (); ty = Int }
   | String _ -> { stms = []; exp = (); ty = String }
   | Call (f, args) ->
       let args_stmss_exps_tys = List.map trexp args in
-      let Fun_entry (tys, ty) = SMap.find f venv in
+      let Fun_entry (fun_level, fun_label, tys, ty) = SMap.find f venv in
       List.iter2 (fun a t -> check_comp a.ty t) args_stmss_exps_tys tys ;
       { stms = []; exp = (); ty = actual_type ty }
   | Aop (e1, aop, e2) ->
@@ -102,7 +103,7 @@ and trans_exp (venv : venv) (tenv : tenv) (exp : Ast.exp) : stms_exp_ty =
         (fun acc e -> trexp e)
         (trexp e1) es
   | Assign (var, e1) ->
-      let { stms; exp; ty = var_ty } = trans_var venv tenv var in
+      let { stms; exp; ty = var_ty } = trans_var venv tenv level var in
       let { stms; exp; ty = e1_ty } = trexp e1 in
       check_comp e1_ty var_ty ;
       { stms = []; exp = (); ty = Unit }
@@ -125,10 +126,10 @@ and trans_exp (venv : venv) (tenv : tenv) (exp : Ast.exp) : stms_exp_ty =
       let venv, tenv =
         List.fold_left
           (fun (venv, tenv) dec ->
-            trans_dec venv tenv dec) 
+            trans_dec venv tenv level dec) 
           (venv, tenv) decs
       in
-      trans_exp venv tenv e1
+      trans_exp venv tenv level e1
   | Array (t, e1, e2) -> 
       let Array (ty, id) = actual_type (SMap.find t tenv) in
       let { stms; exp; ty = Int } = trexp e1 in
@@ -136,7 +137,7 @@ and trans_exp (venv : venv) (tenv : tenv) (exp : Ast.exp) : stms_exp_ty =
       check_comp e2_ty ty ;
       { stms = []; exp = (); ty = Array (ty, id) }
 
-and trans_dec (venv : venv) (tenv : tenv) (dec : Ast.dec) : venv * tenv =
+and trans_dec (venv : venv) (tenv : tenv) (level : Translate.level) (dec : Ast.dec) : venv * tenv =
   match dec with
   | Func_dec func_decs -> 
       let venv = 
@@ -148,33 +149,39 @@ and trans_dec (venv : venv) (tenv : tenv) (dec : Ast.dec) : venv * tenv =
               | Some ret_ty -> SMap.find ret_ty tenv
               | None -> Unit
             in
-            SMap.add name (Env.Fun_entry (params_tys, ret_ty)) venv) 
+            let formals = List.map (fun (p : Ast.param) -> p.escape.contents) params in
+            let fun_label = Label.gen_label () in
+            let fun_level = Translate.new_level level fun_label formals in
+            SMap.add name (Env.Fun_entry (fun_level, fun_label, params_tys, ret_ty)) venv) 
           venv func_decs
       in
       List.iter
         (fun Ast.{name; params; ret_ty; body} -> 
+          let Fun_entry (fun_level, _, _, _) = SMap.find name venv in
+          let accesses = Translate.formals fun_level in
           let venv = 
-            List.fold_left
-              (fun venv (p : Ast.param) ->
-                SMap.add p.name (Env.Var_entry (SMap.find p.ty tenv)) venv) 
-              venv params
+            List.fold_left2
+              (fun venv (p : Ast.param) access ->
+                SMap.add p.name (Env.Var_entry (access, SMap.find p.ty tenv)) venv) 
+              venv params accesses
           in
-          let { stms; exp; ty = body_ty } = trans_exp venv tenv body in
+          let { stms; exp; ty = body_ty } = trans_exp venv tenv fun_level body in
           match ret_ty with
           | None -> check_comp body_ty Unit
           | Some ret_ty -> check_comp body_ty (SMap.find ret_ty tenv)) 
         func_decs ;
       venv, tenv
   | Var_dec { name; escape; ty; init } ->
-      let { stms; exp; ty = init_ty } = trans_exp venv tenv init in
+      let { stms; exp; ty = init_ty } = trans_exp venv tenv level init in
+      let access = Translate.alloc_local level !escape in
       begin match ty with
       | Some ty ->
           let ty = SMap.find ty tenv in
           check_comp init_ty ty ;
-          let venv = SMap.add name (Env.Var_entry ty) venv in
+          let venv = SMap.add name (Env.Var_entry (access, ty)) venv in
           venv, tenv
       | None when init_ty <> Nil ->
-          let venv = SMap.add name (Env.Var_entry init_ty) venv in
+          let venv = SMap.add name (Env.Var_entry (access, init_ty)) venv in
           venv, tenv
       end
   | Type_dec type_decs ->
@@ -203,5 +210,6 @@ and trans_ty_desc (tenv : tenv) (ty : Ast.ty_desc) : Types.t =
 [@@@warning "+unused-var-strict"]
 
 let trans_prog (exp : Ast.exp) =
-  trans_exp Env.base_venv Env.base_tenv exp
+  let level = Translate.new_level Translate.outermost "tiger_main" [] in
+  trans_exp Env.base_venv Env.base_tenv level exp
   |> ignore

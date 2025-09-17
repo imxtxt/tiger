@@ -5,4 +5,4 @@
 
 (library
  (name hello_world)
- (modules lexer parser symbol ast ID types env semant translate))
+ (modules lexer parser symbol ast ID temp label types env semant translate riscv_frame frame))

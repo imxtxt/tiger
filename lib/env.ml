@@ -1,8 +1,8 @@
 type ty = Types.t
 
 type env_entry =
-  | Var_entry of ty
-  | Fun_entry of ty list * ty
+  | Var_entry of Translate.access * ty
+  | Fun_entry of Translate.level * Label.t * ty list * ty
 
 let base_tenv : ty Symbol.SMap.t =
   Symbol.SMap.empty 
@@ -11,13 +11,13 @@ let base_tenv : ty Symbol.SMap.t =
   
 let base_venv : env_entry Symbol.SMap.t = 
   Symbol.SMap.empty
-  |> Symbol.SMap.add "print" (Fun_entry ([Types.String], Types.Int))
-  |> Symbol.SMap.add "flush" (Fun_entry ([], Types.Unit))
-  |> Symbol.SMap.add "getchar" (Fun_entry ([], Types.String))
-  |> Symbol.SMap.add "ord" (Fun_entry ([Types.String], Types.Int))
-  |> Symbol.SMap.add "chr" (Fun_entry ([Types.Int], Types.String))
-  |> Symbol.SMap.add "size" (Fun_entry ([Types.String], Types.Int))
-  |> Symbol.SMap.add "substring" (Fun_entry ([Types.String; Types.Int; Types.Int], Types.String))
-  |> Symbol.SMap.add "concat" (Fun_entry ([Types.String; Types.String], Types.String))
-  |> Symbol.SMap.add "not" (Fun_entry ([Types.Int], Types.Int))
-  |> Symbol.SMap.add "exit" (Fun_entry ([Types.Int], Types.Unit))
+  |> Symbol.SMap.add "print" (Fun_entry (Translate.outermost, "print", [Types.String], Types.Int))
+  |> Symbol.SMap.add "flush" (Fun_entry (Translate.outermost, "flush", [], Types.Unit))
+  |> Symbol.SMap.add "getchar" (Fun_entry (Translate.outermost, "getchar", [], Types.String))
+  |> Symbol.SMap.add "ord" (Fun_entry (Translate.outermost, "ord", [Types.String], Types.Int))
+  |> Symbol.SMap.add "chr" (Fun_entry (Translate.outermost, "chr", [Types.Int], Types.String))
+  |> Symbol.SMap.add "size" (Fun_entry (Translate.outermost, "size", [Types.String], Types.Int))
+  |> Symbol.SMap.add "substring" (Fun_entry (Translate.outermost, "substring", [Types.String; Types.Int; Types.Int], Types.String))
+  |> Symbol.SMap.add "concat" (Fun_entry (Translate.outermost, "concat", [Types.String; Types.String], Types.String))
+  |> Symbol.SMap.add "not" (Fun_entry (Translate.outermost, "not", [Types.Int], Types.Int))
+  |> Symbol.SMap.add "exit" (Fun_entry (Translate.outermost, "exit", [Types.Int], Types.Unit))
