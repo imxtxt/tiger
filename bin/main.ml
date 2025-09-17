@@ -9,4 +9,6 @@ let parse file =
 
 let () = 
   let ast = parse Sys.argv.(1) in
-  Semant.trans_prog ast
+  let _frags = Semant.trans_prog ast in
+  ()
+
