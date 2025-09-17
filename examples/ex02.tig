@@ -1,0 +1,9 @@
+let
+  function sum(x : Int) : Int =
+    if x <= 0 then
+      0
+    else
+      sum(x - 1) + x
+in
+  sum(10000)
+end

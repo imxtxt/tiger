@@ -1,0 +1,6 @@
+let
+  function f(x : Int) : Int =
+    x + 1
+in
+  f(1000)
+end

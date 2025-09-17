@@ -1,0 +1,15 @@
+let
+  type List = { hd : Int, tl : List }
+
+  function list_sum(l : List) : Int =
+    if l = nil then
+      0
+    else
+      l.hd + list_sum(l.tl)
+
+  var list1 := List{ hd = 10, tl = nil }
+  var list2 := List{ hd = 20, tl = list1 }
+  var list3 := List{ hd = 30, tl = list2 }
+in
+  list_sum(list3)
+end

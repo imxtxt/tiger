@@ -1,5 +1,0 @@
-let
-  var num1 : Int := 10
-in
-  num1
-end
