@@ -1,0 +1,17 @@
+let
+  type List = { hd : Int, tl : List }
+
+  function reverse(acc : List, l : List) : List =
+    if l = nil then
+      acc
+    else
+      reverse(List{ hd = l.hd, tl = acc }, l.tl)
+  
+  var list1 := List{ hd = 10, tl = nil }
+  var list2 := List{ hd = 20, tl = list1 }
+  var list3 := List{ hd = 30, tl = list2 }
+
+  var reversed_list := reverse(nil, list3)
+in
+  reversed_list.hd
+end
